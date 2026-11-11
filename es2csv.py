@@ -4,7 +4,10 @@ import json
 import codecs
 import elasticsearch
 import progressbar
-from backports import csv
+try:
+    import csv
+except ImportError:
+    from backports import csv
 from functools import wraps
 
 
@@ -12,7 +15,7 @@ FLUSH_BUFFER = 1000  # Chunk of docs to flush in temp file
 CONNECTION_TIMEOUT = 120
 TIMES_TO_TRY = 3
 RETRY_DELAY = 60
-META_FIELDS = [u'_id', u'_index', u'_score', u'_type']
+META_FIELDS = ['_id', '_index', '_score', '_type']
 
 
 # Retry decorator for functions with exceptions
@@ -112,8 +115,8 @@ class Es2csv:
             search_args['q'] = query
 
         if '_all' not in self.opts.fields:
-            search_args['_source_include'] = ','.join(self.opts.fields)
-            self.csv_headers.extend([unicode(field, "utf-8") for field in self.opts.fields if '*' not in field])
+            search_args['_source_includes'] = ','.join(self.opts.fields)
+            self.csv_headers.extend([field if isinstance(field, str) else field.decode('utf-8') for field in self.opts.fields if '*' not in field])
 
         if self.opts.debug_mode:
             print('Using these indices: {}.'.format(', '.join(self.opts.index_prefixes)))
@@ -124,7 +127,8 @@ class Es2csv:
             print('Sorting by: {}.'.format(', '.join(self.opts.sort)))
 
         res = self.es_conn.search(**search_args)
-        self.num_results = res['hits']['total']
+        total = res['hits']['total']
+        self.num_results = total['value'] if isinstance(total, dict) else total
 
         print('Found {} results.'.format(self.num_results))
         if self.opts.debug_mode:
@@ -209,7 +213,7 @@ class Es2csv:
             self.num_results = sum(1 for line in codecs.open(self.tmp_file, mode='r', encoding='utf-8'))
             if self.num_results > 0:
                 output_file = codecs.open(self.opts.output_file, mode='a', encoding='utf-8')
-                csv_writer = csv.DictWriter(output_file, fieldnames=self.csv_headers)
+                csv_writer = csv.DictWriter(output_file, fieldnames=self.csv_headers, delimiter=self.opts.delimiter)
                 csv_writer.writeheader()
                 timer = 0
                 widgets = ['Write to csv ',
@@ -234,6 +238,10 @@ class Es2csv:
 
     def clean_scroll_ids(self):
         try:
-            self.es_conn.clear_scroll(body=','.join(self.scroll_ids))
+            if self.scroll_ids:
+                self.es_conn.clear_scroll(scroll_id=','.join(self.scroll_ids))
         except:
-            pass
+            try:
+                self.es_conn.clear_scroll(body=','.join(self.scroll_ids))
+            except:
+                pass
