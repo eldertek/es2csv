@@ -67,3 +67,8 @@ Usage
   -h, --help                               show this help message and exit
 
 [ `Usage Examples <./docs/EXAMPLES.rst>`_ | `Release Changelog <./docs/HISTORY.rst>`_ ]
+
+## Commercial Support & Custom Integration
+
+Need custom features, enterprise integration, or priority support?
+Maintained by **[Eclipse Technology](https://eclipse-technology.eu)** ([contact@eclipse-technology.eu](mailto:contact@eclipse-technology.eu)).
